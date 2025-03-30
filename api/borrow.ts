@@ -4,8 +4,27 @@ import dotenv from "dotenv";
 import { caChain } from "../src/chains";
 import { caChainAbi } from "../src/caChainAbi";
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import Cors from "cors";
 
 dotenv.config();
+
+// Setup CORS
+const cors = Cors({
+  origin: "*", // Bisa diubah ke domain spesifik jika perlu keamanan lebih
+  methods: ["POST", "OPTIONS"],
+});
+
+// Helper untuk menjalankan CORS
+function runMiddleware(req: VercelRequest, res: VercelResponse, fn: any) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result: any) => {
+      if (result instanceof Error) {
+        return reject(result);
+      }
+      return resolve(result);
+    });
+  });
+}
 
 // Setup Wallet Client
 const account = privateKeyToAccount(
@@ -20,8 +39,13 @@ const caChainClient = createWalletClient({
   account,
 });
 
-async function executeBorrow(user: Address, amount: string): Promise<`0x${string}`> {
-  console.log(`🔹 Executing borrow for ${user} on Ca Chain with ${amount} USDC`);
+async function executeBorrow(
+  user: Address,
+  amount: string
+): Promise<`0x${string}`> {
+  console.log(
+    `🔹 Executing borrow for ${user} on Ca Chain with ${amount} USDC`
+  );
   try {
     const amountParsed = parseUnits(amount, 6);
     const tx = await caChainClient.writeContract({
@@ -39,20 +63,30 @@ async function executeBorrow(user: Address, amount: string): Promise<`0x${string
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await runMiddleware(req, res, cors);
+
   if (req.method === "POST") {
     try {
       const { userAddress, amount } = req.body;
       if (!userAddress || !amount) {
         return res.status(400).json({
           success: false,
-          message: "Missing required parameters: userAddress and amount are required",
+          message:
+            "Missing required parameters: userAddress and amount are required",
         });
       }
       if (!userAddress.startsWith("0x") || userAddress.length !== 42) {
-        return res.status(400).json({ success: false, message: "Invalid user address format" });
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid user address format" });
       }
       if (isNaN(Number(amount)) || Number(amount) <= 0) {
-        return res.status(400).json({ success: false, message: "Amount must be a positive number" });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Amount must be a positive number",
+          });
       }
       const txHash = await executeBorrow(userAddress as Address, amount);
       res.status(200).json({
@@ -62,7 +96,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (error: any) {
       console.error("API Error:", error);
-      res.status(500).json({ success: false, message: "Failed to execute borrow operation", error: error.message });
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: "Failed to execute borrow operation",
+          error: error.message,
+        });
     }
   } else {
     res.status(405).json({ success: false, message: "Method Not Allowed" });

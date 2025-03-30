@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "ts-node src/solver.ts"
+    "dev": "ts-node src/index.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +19,7 @@
     "viem": "^2.24.2"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/node": "^22.13.14",
     "ts-node": "^10.9.2",
